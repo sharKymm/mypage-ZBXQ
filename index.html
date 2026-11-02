@@ -883,8 +883,10 @@ html:not(.js) #boot{display:none}
       sortFn: (a, b, v) => {
         if (v === 'name') return a.name.localeCompare(b.name, 'zh');
         if (v === 'date') return String(a.raw.deadline.sortDate || '9999').localeCompare(String(b.raw.deadline.sortDate || '9999'));
-        const order = ['香港', '新加坡', '英国', '澳大利亚', '澳门'];
-        return (order.indexOf(a.raw.region) - order.indexOf(b.raw.region)) || a.name.localeCompare(b.name, 'zh');
+        // 港澳优先；未列入的地区统一排在最后（不能直接比 indexOf，-1 会跑到最前面）
+        const order = ['香港', '澳门', '新加坡', '英国', '澳大利亚', '美国', '加拿大', '瑞士', '荷兰', '德国', '比利时', '日本', '韩国'];
+        const rank = (r) => { const i = order.indexOf(r); return i < 0 ? 99 : i; };
+        return (rank(a.raw.region) - rank(b.raw.region)) || a.name.localeCompare(b.name, 'zh');
       },
       match: (s, f) => {
         if (f.region && s.raw.region !== f.region) return false;
