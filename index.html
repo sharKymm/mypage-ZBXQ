@@ -791,7 +791,6 @@ html:not(.js) #boot{display:none}
             if (ex.referencePage) btns.push('<a class="dlbtn" href="' + esc(ex.referencePage) + '" target="_blank" rel="noopener">官方页面</a>');
             return base + (btns.length ? '<div class="dlrow">' + btns.join('') + '</div>' : '');
           })() },
-          { k: '学制', v: (s.extras && s.extras.duration) ? esc(s.extras.duration) : TBD },
           { k: '材料清单', v: (() => {
             const arr = (s.extras && s.extras.materials) || [];
             if (!arr.length) return TBD;
