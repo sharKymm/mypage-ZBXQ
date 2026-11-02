@@ -997,14 +997,14 @@ html:not(.js) #boot{display:none}
       const opts = f.opts(d).map(o => ({ v: o, t: o }));
       box.appendChild(buildCsel({
         key: f.key, label: f.label, options: opts, current: cur,
-        onPick: (v) => { state.f = state.f || {}; state.f[f.key] = v; renderFilters(); renderCards(); }
+        onPick: (v) => { state.f = state.f || {}; state.f[f.key] = v; renderFilters(); renderCards(); savePrefs(); }
       }));
     }
     const curSort = state.sort && state.sort !== 'default' ? state.sort : '';
     const sortLabel = (cfg.sorts.find(s => s.v === curSort) || {}).label || '排序';
     box.appendChild(buildCsel({
       key: 'sort', label: '排序', options: cfg.sorts.map(s => ({ v: s.v, t: s.label })), current: curSort === '' ? '' : sortLabel,
-      onPick: (v) => { state.sort = v || 'default'; renderFilters(); renderCards(); }
+      onPick: (v) => { state.sort = v || 'default'; renderFilters(); renderCards(); savePrefs(); }
     }));
   }
 
@@ -1080,6 +1080,27 @@ html:not(.js) #boot{display:none}
       document.documentElement.style.overflow = '';
       document.body.style.overflow = '';
     }
+  }
+
+  const PREF_KEY = NS + 'prefs';
+  function savePrefs() {
+    try {
+      localStorage.setItem(PREF_KEY, JSON.stringify({
+        ds: state.ds, f: state.f || {}, sort: state.sort, q: state.q || '', theme: state.theme
+      }));
+    } catch (e) {}
+  }
+  function loadPrefs() {
+    try {
+      const raw = localStorage.getItem(PREF_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (p.theme === 'light' || p.theme === 'dark') state.theme = p.theme;
+      if (p.ds === 'cn' || p.ds === 'intl') state.ds = p.ds;
+      if (p.sort) state.sort = p.sort;
+      if (typeof p.q === 'string') state.q = p.q;
+      if (p.f && typeof p.f === 'object') state.f = p.f;
+    } catch (e) {}
   }
 
   function toggleCompare(id) {
@@ -1355,6 +1376,7 @@ html:not(.js) #boot{display:none}
     renderAll();
     // 停在同一页：只重渲染当前板块，不强行跳回院校库
     if (['guide', 'timeline', 'map', 'language'].includes(state.view)) showView(state.view);
+    savePrefs();
     toast(ds === 'cn' ? '已切到国内院校' : '已切到国外院校');
   }
 
@@ -1376,6 +1398,7 @@ html:not(.js) #boot{display:none}
     document.body.classList.toggle('light', state.theme === 'light');
     $('#themeBtn').textContent = state.theme === 'light' ? '深色' : '浅色';
     try { localStorage.setItem(NS + 'theme', state.theme); } catch (e) {}
+    savePrefs();
   }
 
 
@@ -1430,10 +1453,14 @@ html:not(.js) #boot{display:none}
     try { state.theme = localStorage.getItem(NS + 'theme') || 'light'; } catch (e) {}
     if (/[?&]t=light/.test(location.search)) state.theme = 'light';
     if (/[?&]t=dark/.test(location.search)) state.theme = 'dark';
+    loadPrefs();
+    if ($('#q') && state.q) $('#q').value = state.q;
     applyTheme();
     const h = location.hash;
     const m = /^#\/(cn|intl)\//.exec(h);
-    if (m) state.ds = m[1];
+    // 只有 hash 明确指向某所学校/某个板块时才覆盖数据集；首页或无 hash 时沿用上次的选择
+    const isHome = !h || h === '#' || /^#\/(cn|intl)\/schools\/?$/.test(h);
+    if (m && !isHome) state.ds = m[1];
 
     try { await loadDs('cn'); } catch (e) {}
     try { await loadDs('intl'); } catch (e) {}
@@ -1450,7 +1477,7 @@ html:not(.js) #boot{display:none}
       document.body.classList.add('ready');
       document.documentElement.classList.remove('js');
     });
-    $('#q').addEventListener('input', e => { state.q = e.target.value; renderCards(); });
+    $('#q').addEventListener('input', e => { state.q = e.target.value; renderCards(); savePrefs(); });
     $$('.dsTab').forEach(b => b.onclick = () => switchDs(b.dataset.ds));
     $$('.nav a').forEach(a => a.onclick = e => {
       e.preventDefault();
