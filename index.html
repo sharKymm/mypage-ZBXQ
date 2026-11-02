@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="js">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -566,9 +566,37 @@ body.light ::-webkit-scrollbar-thumb{background:color-mix(in srgb,#0F1216 22%,tr
 .dlbtn:hover{background:color-mix(in srgb,var(--accent) 16%,transparent);text-decoration:none}
 body.light .dlbtn{background:#EEF2FF;border-color:#D6DEFF;color:#3B5BFF}
 
+/* 首屏淡入：不做 loading 圈，靠 0.2s 渐显消除“白闪/半成品” */
+@keyframes bootfade { from { opacity: 0 } to { opacity: 1 } }
+html.js body { animation: bootfade .2s ease-out both }
+@media (prefers-reduced-motion: reduce) { html.js body { animation: none } }
+
+/* 极简 loading：0.6s 后才出现，6s 后自动消失——快的时候完全看不到 */
+#boot{position:fixed;inset:0;z-index:999;display:grid;place-items:center;
+  background:var(--bg);opacity:0;pointer-events:none;
+  animation:bootshow .18s ease .6s forwards, boothide .18s ease 6s forwards}
+html:not(.js) #boot{display:none}
+#boot i{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);
+  border-top-color:var(--accent);animation:bootspin .7s linear infinite}
+@keyframes bootshow{to{opacity:1}}
+@keyframes boothide{to{opacity:0;visibility:hidden}}
+@keyframes bootspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){
+  #boot i{animation:none;border-top-color:var(--line)}
+}
+
 </style>
 </head>
 <body>
+<div id="boot"><i></i></div>
+<script>/* __theme_boot：在首帧之前定好主题，默认浅色 */ (function () {
+  var t = 'light';
+  try { t = localStorage.getItem('phd:theme') || 'light'; } catch (e) {}
+  var m = /[?&]t=(light|dark)/.exec(location.search);
+  if (m) t = m[1];
+  if (t === 'light') document.body.classList.add('light');
+  document.documentElement.style.colorScheme = t === 'light' ? 'light' : 'dark';
+})();</script>
 
 <header class="top">
   <div class="wrap top-in">
@@ -677,7 +705,7 @@ body.light .dlbtn{background:#EEF2FF;border-color:#D6DEFF;color:#3B5BFF}
   'use strict';
 
   const NS = 'phd:';
-  const state = { ds: 'cn', q: '', f: {}, sort: 'default', compare: [], theme: 'dark', view: 'schools' };
+  const state = { ds: 'cn', q: '', f: {}, sort: 'default', compare: [], theme: 'light', view: 'schools' };
   const DATA = { cn: null, intl: null };
 
   const $ = (s, r) => (r || document).querySelector(s);
@@ -1399,7 +1427,7 @@ body.light .dlbtn{background:#EEF2FF;border-color:#D6DEFF;color:#3B5BFF}
   }
 
   async function boot() {
-    try { state.theme = localStorage.getItem(NS + 'theme') || 'dark'; } catch (e) {}
+    try { state.theme = localStorage.getItem(NS + 'theme') || 'light'; } catch (e) {}
     if (/[?&]t=light/.test(location.search)) state.theme = 'light';
     if (/[?&]t=dark/.test(location.search)) state.theme = 'dark';
     applyTheme();
@@ -1417,6 +1445,11 @@ body.light .dlbtn{background:#EEF2FF;border-color:#D6DEFF;color:#3B5BFF}
     if (!DATA[state.ds]) state.ds = DATA.cn ? 'cn' : 'intl';
 
     renderAll(); bindPill(); initUpdate();
+    // 首帧渲染完成后再淡入，避免看到半成品
+    requestAnimationFrame(() => {
+      document.body.classList.add('ready');
+      document.documentElement.classList.remove('js');
+    });
     $('#q').addEventListener('input', e => { state.q = e.target.value; renderCards(); });
     $$('.dsTab').forEach(b => b.onclick = () => switchDs(b.dataset.ds));
     $$('.nav a').forEach(a => a.onclick = e => {
